@@ -39,16 +39,16 @@ class ComparisonReports:
         # Create the report filename and if it already exists, delete the file.
         html_file = FileNameOps.create_filename(primary_filename=self.src.data_file_name,
                                                 basis_filename=self.cmp.data_file_name,
-                                                ext=f'{tag_name}.html', unique=False)
+                                                ext=f'{tag_name}.html', unique=True)
 
         # Instantiate report generator and generate result tables
         result_tables = [self.report_engine.comparison_summary(results=results_dict),
                          self.report_engine.closest_match_info(results=results_dict)]
-        result_table_str = ["*** Comparison Matches for {tag_name} ***\n{table}\n\n",
-                            "Closest Element Match for {tag_name}:\n{table}\n\n"]
+        result_table_str = ['Exact and Best Matches for "{tag_name}"\n{table}\n\n',
+                            'Closest Element Match for "{tag_name}"\n{table}\n\n']
 
         # Write results to the logfile
-        for report, report_title in zip(result_tables, result_table_str):
+        for index, (report, report_title) in enumerate(zip(result_tables, result_table_str)):
             log.info(report_title.format(tag_name=tag_name, table=report.get_string()))
 
             # Write the results to the report file
@@ -58,8 +58,13 @@ class ComparisonReports:
             # Generate HTML file if requested:
             if self.html:
                 log.info(f"Generating HTML file ({html_file}) for '{tag_name}' comparison reports.\n")
+                html_table = report.get_html_string()
+                html_table = self._process_html_table(
+                    html_table=html_table, table_title=report_title.format(tag_name=tag_name, table=""),
+                    index=index, page_title="&lt{tag_name}&gt: Comparison Reports".format(tag_name=tag_name))
+
                 with open(html_file, "a") as HTML:
-                    HTML.write(report.get_html_string())
+                    HTML.write(html_table)
                     HTML.write("</br></br>")
 
     def build_sym_diff_reports(self, html: bool = False) -> typing.NoReturn:
@@ -86,5 +91,53 @@ class ComparisonReports:
                 primary_filename=self.src.data_file_name, basis_filename=self.cmp.data_file_name,
                 ext=f'sym.html', unique=True)
 
+            html_table = sym_diff_table.get_html_string()
+            html_table = self._process_html_table(
+                html_table=html_table, page_title="Symmetric Differences",
+                table_title=f'Symmetrical Differences between "{self.src.data_file_name}" and '
+                            f'"{self.cmp.data_file_name}"')
+
             with open(html_file, "a") as HTML:
-                HTML.write(sym_diff_table.get_html_string())
+                HTML.write(html_table)
+
+    @staticmethod
+    def _process_html_table(html_table: str, table_title: str, index: int = 0, font="Times New Roman",
+                            page_title: str = "") -> str:
+        """
+        Updates the PrettyTable html to be easier to read (style, labelling, and color changes)
+
+        :param html_table: (str) Table in HTML
+        :param table_title: (str) Title of Table
+        :param index: (int) Indicates first iteration of output (so title is only added once, if index == 0)
+        :param font: (str) Specify the font to use in the table (default=Times New Roman)
+        :param page_title: (str) Specify name of the page
+
+        :return: (str) updated HTML
+
+        """
+        padding = 5
+        color = "#00FF00"
+        border = 1
+
+        style = f"""
+        <style>
+        table, th, td {{
+            font-family: {font};
+            border: {border}px solid black;
+            border-collapse: collapse;
+        }}
+        th, td {{
+            padding: {padding}px
+        }}
+        th {{
+            background-color: {color}
+        }}
+        </style>
+
+        """
+
+        # Only render the title once (index = 0). Subsequent calls should not add a page title.
+        page_tab_title = f"<title>{page_title}</title>"
+        page_title = f"<h1>{page_title}</h1></p>" if index == 0 else ""
+        table_title = f"<h2>{table_title}</h2>"
+        return f"{page_tab_title}\n{page_title}\n{table_title}{style}{html_table}"

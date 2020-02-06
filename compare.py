@@ -98,7 +98,8 @@ if __name__ == '__main__':
     # Instantiate comparison engine
     comp_eng = ComparisonEngine(primary=primary, comparison=basis)
     reporter = ComparisonReports(primary=primary, basis=basis, html=cli.args.html)
-    # Do comparison on the following tags and generate result reports
+
+    # Do a comparison on the following tags and generate the result reports
     TAG_LIST = ["ASSET", "COLLATERAL", "EXPENSE", "LIABILITY", "LOAN", "PARTY"]
     for tag in TAG_LIST:
         results = comp_eng.compare(tag_name=tag)
