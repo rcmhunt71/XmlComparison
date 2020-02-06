@@ -37,7 +37,7 @@ class CLIArgs:
             help="[OPTIONAL] Create outfile of XML to dict conversion processes (for debugging)")
         self.parser.add_argument(
             "-d", "--debug", action="store_true",
-            help="[OPTIONAL] Enable debug logging.")
+            help="[OPTIONAL] Enable debug logging")
         self.parser.add_argument(
             "-w", "--html", action="store_true",
             help="[OPTIONAL] Generate HTML (web) versions of the reports, one set of reports per tag")
