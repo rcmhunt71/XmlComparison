@@ -40,19 +40,19 @@ class ComparisonReportEngine:
     # Named Tuple for column definition
     COLUMN_DEF = namedtuple('column', field_names=("name", "alignment"))
 
-    def __init__(self, src_model, cmp_model, results=None) -> typing.NoReturn:
+    def __init__(self, primary_model, basis_model, results=None) -> typing.NoReturn:
         """
         Initialize the reporting engine
-        :param src_model: Source (absolute or relative root) BaseElement Model
-        :param cmp_model: Comparison [source of truth] (absolute or relative root) BaseElement Model
+        :param primary_model: Source (absolute or relative root) BaseElement Model
+        :param basis_model: Comparison [source of truth] (absolute or relative root) BaseElement Model
         :param results: Result Dict from comparing the models (done by comparison_engine:ComparisonEngine)
 
         """
-        self.src_model = src_model
-        self.cmp_model = cmp_model
+        self.src_model = primary_model
+        self.cmp_model = basis_model
         self.results = results
 
-    def symmetrical_differences(self) -> str:
+    def symmetrical_differences(self) -> prettytable:
         """
         Create a report of symmetrical ELEMENT (not attribute) differences between the data sets.
         (Symmetrical = found in one dataset, but not the other, irrespective if source or comparison)
@@ -64,7 +64,6 @@ class ComparisonReportEngine:
         diff = set(list(self.src_model.path_dict)) ^ set(list(self.cmp_model.path_dict))
 
         # Instantiate table
-        report = f"{self.DIFFERENCES}:"
         table = prettytable.PrettyTable()
 
         # Column name, order, and alignment
@@ -87,12 +86,11 @@ class ComparisonReportEngine:
                        '//' + self.cmp_model.XPATH_DELIMITER.join(self.cmp_model.path_dict[elem])]
 
             table.add_row(row)
-        return f"{report}\n{table.get_string()}"
+        return table
 
-    def comparison_summary(self, title: str, results=None) -> str:
+    def comparison_summary(self, results=None) -> prettytable:
         """
         Builds table of overall results (exact and closest matches)
-        :param title: Title to prefix the table
         :param results: Results dictionary (defined in ComparisonEngine)
 
         :return: String representation of tabular results
@@ -136,17 +134,15 @@ class ComparisonReportEngine:
                 # Build row
                 table.add_row([xpath, exact_match, closest_match])
 
-        return f"{title}\n{table.get_string()}"
+        return table
 
-    def closest_match_info(self, results: typing.Dict[str, dict] = None) -> str:
+    def closest_match_info(self, results: typing.Dict[str, dict] = None) -> prettytable:
         """
         Generates element-by-element comparison of closest match to source element.
         :param results: Results Data dictionary (defined by comparison_engine._compare_element_lists())
         :return: String representation of tabular results
 
         """
-        title = 'Closest Match Report'
-
         # Column name, order, and alignment
         columns = [
             self.COLUMN_DEF(self.PRIMARY_PATH, self.LEFT),
@@ -203,7 +199,7 @@ class ComparisonReportEngine:
                     # After each comparison, add a blank line
                     table.add_row(["" for _ in range(len(columns))])
 
-        return f"{title}\n{table.get_string()}"
+        return table
 
     def _build_differences(self, src_xpath: str, data: typing.Dict[str, typing.Any]) -> typing.Dict[str, dict]:
         """

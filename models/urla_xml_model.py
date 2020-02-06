@@ -13,10 +13,10 @@ class UrlaXML:
     to process the XML, and allows the user to quickly access the various data elements within the XML.
 
     """
-    def __init__(self, source_file_name: str, primary_source: bool = False) -> typing.NoReturn:
-        self.source_file_name = source_file_name
-        self.primary_source = primary_source
-        self.data = self.convert_xml_to_dict(source_file_name)
+    def __init__(self, data_file_name: str, is_primary_source: bool = False) -> typing.NoReturn:
+        self.data_file_name = data_file_name
+        self.is_primary_source = is_primary_source
+        self.data = self.convert_xml_to_dict(data_file_name)
         self.model = BaseElement(data=self.data)
 
     def read_file(self, filename: str) -> typing.List[str]:
@@ -25,7 +25,7 @@ class UrlaXML:
         :param filename: Name (& diirectory) of target file
         :return: List of strings (file content, per line)
         """
-        file_type = "primary" if self.primary_source else "comparison"
+        file_type = "primary" if self.is_primary_source else "comparison"
         print(f"Reading {file_type} file: '{os.path.abspath(filename)}'")
         with open(filename, "r") as FILE:
             return FILE.readlines()
