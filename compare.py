@@ -40,7 +40,7 @@ class CLIArgs:
             help="[OPTIONAL] Enable debug logging.")
         self.parser.add_argument(
             "-w", "--html", action="store_true",
-            help="[OPTIONAL] - Generate HTML (web) versions of the report")
+            help="[OPTIONAL] Generate HTML (web) versions of the report")
 
 
 class FileNameOps:
