@@ -37,6 +37,9 @@ class CLIArgs:
             "-o", "--outfile", action="store_true",
             help="[OPTIONAL] Create outfile of XML to dict conversion processes (for debugging)")
         self.parser.add_argument(
+            "-t", "--tag", default=None,
+            help="[OPTIONAL] Specfic XML tag to analyze")
+        self.parser.add_argument(
             "-d", "--debug", action="store_true",
             help="[OPTIONAL] Enable debug logging")
         self.parser.add_argument(
@@ -81,6 +84,7 @@ if __name__ == '__main__':
 
     # Build logfile file spec and instantiate logger
     project = "XMLComparison"
+    # TODO: include tag name in filename
     log_filename = FileNameOps.create_filename(
         primary_filename=cli.args.primary, basis_filename=cli.args.basis, ext='log')
     print(f"Logging to: {log_filename}.")
@@ -101,6 +105,8 @@ if __name__ == '__main__':
 
     # Do a comparison on the following tags and generate the result reports
     TAG_LIST = ["ASSET", "COLLATERAL", "EXPENSE", "LIABILITY", "LOAN", "PARTY"]
+    if cli.args.tag is not None:
+        TAG_LIST = [cli.args.tag]
     for tag in TAG_LIST:
         results = comp_eng.compare(tag_name=tag)
         reporter.generate_reports_per_tag(results_dict=results, tag_name=tag)
