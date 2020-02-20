@@ -11,11 +11,13 @@ Compares a "primary" XML file against a basis (source of truth) XML and reports 
 
     Minimum required options:
 
-         python compare.py --primary <file_to_be_checked.xml> --basis <source_of_truth.xml>
+         python compare.py --actual <file_to_be_checked.xml> --expected <source_of_truth.xml>
+         python compare.py -a <file_to_be_checked.xml> -e <source_of_truth.xml>
 
 * To generate HTML output, also add `--html` option:
 
-       python compare.py --primary <file_to_be_checked.xml> --basis <source_of_truth.xml> --html
+       python compare.py --actual <file_to_be_checked.xml> --expected <source_of_truth.xml> --html
+       python compare.py -a <file_to_be_checked.xml> -e <source_of_truth.xml> -w
 
     This option will generate an html file **per XML tag** analyzed.
 
