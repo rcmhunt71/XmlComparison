@@ -28,17 +28,18 @@ class CLIArgs:
 
     def _defined_args(self) -> typing.NoReturn:
         self.parser.add_argument(
-            "-p", "--primary", required=True,
-            help="Primary XML file to be compared to other MISMO formatted XML files")
+            "-a", "--actual", required=True,
+            help="The 'actual' XML file to be compared to other MISMO formatted XML file (expected)")
         self.parser.add_argument(
-            "-b", "--basis", required=True,
-            help="MISMO formatted XML file used as a basis or 'source of truth' to verify against the primary XML file")
+            "-e", "--expected", required=True,
+            help="MISMO formatted XML file used as the expected or 'source of truth' to verify against "
+                 "the 'actual' XML file")
         self.parser.add_argument(
             "-o", "--outfile", action="store_true",
             help="[OPTIONAL] Create outfile of XML to dict conversion processes (for debugging)")
         self.parser.add_argument(
-            "-t", "--tag", default=None,
-            help="[OPTIONAL] Specfic XML tag to analyze")
+            "-t", "--tags", nargs="+", default=None,
+            help="[OPTIONAL] Specific XML tags to analyze")
         self.parser.add_argument(
             "-d", "--debug", action="store_true",
             help="[OPTIONAL] Enable debug logging")
@@ -49,13 +50,13 @@ class CLIArgs:
 
 class DebugXML:
     @staticmethod
-    def write_debug_files(source_obj: UrlaXML, compare_obj: UrlaXML) -> typing.NoReturn:
+    def write_debug_files(actual_obj: UrlaXML, expected_obj: UrlaXML) -> typing.NoReturn:
         """
         Given the UrlaXML objs, write each objects's OrderedDict as a str (OrderedDict = output from
         converting XML to dict)
 
-        :param source_obj: Source XML object
-        :param compare_obj: Comparison XML object
+        :param actual_obj: Source (actual|generated) XML object
+        :param expected_obj: Expected (correct|source of truth) XML object
 
         :return: None
         """
@@ -64,18 +65,18 @@ class DebugXML:
         indent, width = (4, 180)
 
         # Build file spec (filename + path)
-        out_primary_file_spec = FileNameOps.build_filename(
-            target_dir=outfile_dir, input_fname=source_obj.data_file_name, ext=outfile_ext)
-        out_compare_file_spec = FileNameOps.build_filename(
-            target_dir=outfile_dir, input_fname=compare_obj.data_file_name, ext=outfile_ext)
+        out_actual_file_spec = FileNameOps.build_filename(
+            target_dir=outfile_dir, input_fname=actual_obj.data_file_name, ext=outfile_ext)
+        out_expected_file_spec = FileNameOps.build_filename(
+            target_dir=outfile_dir, input_fname=expected_obj.data_file_name, ext=outfile_ext)
 
         # Build output data structure (as string)
-        primary_dict_info = pprint.pformat(json.dumps(source_obj.data), indent=indent, width=width, compact=False)
-        compare_dict_info = pprint.pformat(json.dumps(compare_obj.data), indent=indent, width=width, compact=False)
+        primary_dict_info = pprint.pformat(json.dumps(actual_obj.data), indent=indent, width=width, compact=False)
+        compare_dict_info = pprint.pformat(json.dumps(expected_obj.data), indent=indent, width=width, compact=False)
 
         # Write to file
-        source_obj.dump_data_to_file(outfile=out_primary_file_spec, data_dict=primary_dict_info)
-        compare_obj.dump_data_to_file(outfile=out_compare_file_spec, data_dict=compare_dict_info)
+        actual_obj.dump_data_to_file(outfile=out_actual_file_spec, data_dict=primary_dict_info)
+        expected_obj.dump_data_to_file(outfile=out_expected_file_spec, data_dict=compare_dict_info)
 
 
 if __name__ == '__main__':
@@ -84,30 +85,29 @@ if __name__ == '__main__':
 
     # Build logfile file spec and instantiate logger
     project = "XMLComparison"
-    # TODO: include tag name in filename
     log_filename = FileNameOps.create_filename(
-        primary_filename=cli.args.primary, basis_filename=cli.args.basis, ext='log')
+        actual_xml_filename=cli.args.actual, expected_xml_filename=cli.args.expected, ext='log')
     print(f"Logging to: {log_filename}.")
     log = Logger(default_level=Logger.DEBUG if cli.args.debug else Logger.INFO,
                  set_root=True, project=project, filename=log_filename)
 
     # Create URLA XML objects (read file, convert to nested OrderedDict structure)
-    primary = UrlaXML(data_file_name=cli.args.primary, is_primary_source=True)
-    basis = UrlaXML(data_file_name=cli.args.basis, is_primary_source=False)
+    actual = UrlaXML(data_file_name=cli.args.actual, is_primary_source=True)
+    expected = UrlaXML(data_file_name=cli.args.expected, is_primary_source=False)
 
     # Write debug files if requested
     if cli.args.outfile:
-        DebugXML.write_debug_files(source_obj=primary, compare_obj=basis)
+        DebugXML.write_debug_files(actual_obj=actual, expected_obj=expected)
 
     # Instantiate comparison engine
-    comp_eng = ComparisonEngine(primary=primary, comparison=basis)
-    reporter = ComparisonReports(primary=primary, basis=basis, html=cli.args.html)
+    comp_eng = ComparisonEngine(actual=actual, expected=expected)
+    reporter = ComparisonReports(actual_xml_model=actual, expected_xml_model=expected, html=cli.args.html)
 
     # Do a comparison on the following tags and generate the result reports
-    TAG_LIST = ["ASSET", "COLLATERAL", "EXPENSE", "LIABILITY", "LOAN", "PARTY"]
-    if cli.args.tag is not None:
-        TAG_LIST = [cli.args.tag]
-    for tag in TAG_LIST:
+    tag_list = (cli.args.tags if cli.args.tags is not None else
+                ["ASSET", "COLLATERAL", "EXPENSE", "LIABILITY", "LOAN", "PARTY"])
+
+    for tag in tag_list:
         results = comp_eng.compare(tag_name=tag)
         reporter.generate_reports_per_tag(results_dict=results, tag_name=tag)
     reporter.build_sym_diff_reports(html=cli.args.html)

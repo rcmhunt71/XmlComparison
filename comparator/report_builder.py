@@ -13,8 +13,8 @@ class ComparisonReportEngine:
 
     # Table column headers
     ATTRIBUTE = "Attribute"
-    BASIS = "Basis"
-    BASIS_VALUE = "Base Value"
+    EXPECTED = "Expected"
+    EXPECTED_VALUE = "Expected Value"
     CLOSEST = "Closest Match"
     DIFFERENCE = "Diff?"
     DIFFERENCES = "ELEMENT DIFFERENCES"
@@ -22,7 +22,7 @@ class ComparisonReportEngine:
     PATH = "Path"
     PRIMARY = "Primary"
     PRIMARY_PATH = "Primary Path"
-    PRIMARY_VALUE = "Primary Value"
+    ACTUAL_VALUE = "Actual Value"
     SOURCE = 'Source'
     TAG = "Tag"
     XPATH = "XPath"
@@ -40,16 +40,16 @@ class ComparisonReportEngine:
     # Named Tuple for column definition
     COLUMN_DEF = namedtuple('column', field_names=("name", "alignment"))
 
-    def __init__(self, primary_model, basis_model, results=None) -> typing.NoReturn:
+    def __init__(self, actual_model, expected_model, results=None) -> typing.NoReturn:
         """
         Initialize the reporting engine
-        :param primary_model: Source (absolute or relative root) BaseElement Model
-        :param basis_model: Comparison [source of truth] (absolute or relative root) BaseElement Model
+        :param actual_model: Source (absolute or relative root) BaseElement Model
+        :param expected_model: Comparison [source of truth] (absolute or relative root) BaseElement Model
         :param results: Result Dict from comparing the models (done by comparison_engine:ComparisonEngine)
 
         """
-        self.src_model = primary_model
-        self.cmp_model = basis_model
+        self.actual_model = actual_model
+        self.expected_model = expected_model
         self.results = results
 
     def symmetrical_differences(self) -> prettytable:
@@ -61,7 +61,7 @@ class ComparisonReportEngine:
 
         """
         # Determine difference between models tags (list all tags only present in either model but not both)
-        diff = set(list(self.src_model.path_dict)) ^ set(list(self.cmp_model.path_dict))
+        diff = set(list(self.actual_model.path_dict)) ^ set(list(self.expected_model.path_dict))
 
         # Instantiate table
         table = prettytable.PrettyTable()
@@ -78,12 +78,12 @@ class ComparisonReportEngine:
         for elem in sorted(diff):
 
             # Determine which dictionary had the current element (unique tag path)
-            if elem in self.src_model.path_dict:
+            if elem in self.actual_model.path_dict:
                 row = [self.PRIMARY.upper(), elem,
-                       '//' + self.src_model.XPATH_DELIMITER.join(self.src_model.path_dict[elem])]
+                       '//' + self.actual_model.XPATH_DELIMITER.join(self.actual_model.path_dict[elem])]
             else:
-                row = [self.BASIS.upper(), elem,
-                       '//' + self.cmp_model.XPATH_DELIMITER.join(self.cmp_model.path_dict[elem])]
+                row = [self.EXPECTED.upper(), elem,
+                       '//' + self.expected_model.XPATH_DELIMITER.join(self.expected_model.path_dict[elem])]
 
             table.add_row(row)
         return table
@@ -149,8 +149,8 @@ class ComparisonReportEngine:
             self.COLUMN_DEF(self.CLOSEST, self.LEFT),
             self.COLUMN_DEF(self.TAG, self.LEFT),
             self.COLUMN_DEF(self.DIFFERENCE, self.CENTER),
-            self.COLUMN_DEF(self.PRIMARY_VALUE, self.LEFT),
-            self.COLUMN_DEF(self.BASIS_VALUE, self.LEFT),
+            self.COLUMN_DEF(self.ACTUAL_VALUE, self.LEFT),
+            self.COLUMN_DEF(self.EXPECTED_VALUE, self.LEFT),
         ]
 
         # Define table
@@ -186,10 +186,10 @@ class ComparisonReportEngine:
 
                             # Check if XPATH had a value in the source and comparison tables.
                             # If so, save to add to the row data.
-                            src_value = (self.NO_ENTRY if attr_data[self.PRIMARY_VALUE] == "" else
-                                         attr_data[self.PRIMARY_VALUE])
-                            cmp_value = (self.NO_ENTRY if attr_data[self.BASIS_VALUE] == "" else
-                                         attr_data[self.BASIS_VALUE])
+                            src_value = (self.NO_ENTRY if attr_data[self.ACTUAL_VALUE] == "" else
+                                         attr_data[self.ACTUAL_VALUE])
+                            cmp_value = (self.NO_ENTRY if attr_data[self.EXPECTED_VALUE] == "" else
+                                         attr_data[self.EXPECTED_VALUE])
 
                             # If the source and comparison values were different, denote this in the row data.
                             # Build row data with known information.
@@ -252,17 +252,17 @@ class ComparisonReportEngine:
                 if leaf_tag_name not in diff_dict[src_xpath][cmp_xpath]:
                     diff_dict[src_xpath][cmp_xpath][leaf_tag_name] = {
                         self.XPATH: attr_xpath,
-                        self.PRIMARY_VALUE: self.NO_ENTRY,
-                        self.BASIS_VALUE: self.NO_ENTRY}
+                        self.ACTUAL_VALUE: self.NO_ENTRY,
+                        self.EXPECTED_VALUE: self.NO_ENTRY}
 
                 # If the current attribute difference is in the src set
                 if attr_found in src_child_set:
                     diff_dict[src_xpath][cmp_xpath][leaf_tag_name][
-                        self.PRIMARY_VALUE] = src.ENTRY_DELIMITER.join(cmp_attr_data[1:])
+                        self.ACTUAL_VALUE] = src.ENTRY_DELIMITER.join(cmp_attr_data[1:])
 
                 # If the current attribute difference is in the cmp set
                 if attr_found in cmp_child_set:
                     diff_dict[src_xpath][cmp_xpath][leaf_tag_name][
-                        self.BASIS_VALUE] = src.ENTRY_DELIMITER.join(cmp_attr_data[1:])
+                        self.EXPECTED_VALUE] = src.ENTRY_DELIMITER.join(cmp_attr_data[1:])
 
         return diff_dict

@@ -10,23 +10,27 @@ log = Logger()
 
 
 class ComparisonReports:
-    def __init__(self, primary: UrlaXML, basis: UrlaXML, html: bool = False) -> typing.NoReturn:
+    def __init__(self, actual_xml_model: UrlaXML, expected_xml_model: UrlaXML, tag: str = None, html: bool = False) \
+            -> typing.NoReturn:
         """
         The ComparisonReports Class defines and generates the various comparison reports, and also
         collects the necessary data sources for all reports, so the information only needs to be provided once
         and is available to all generated reports. (DRY Principle)
 
-        :param primary: Primary UrlaXML model
-        :param basis: Basis UrlaXML model
+        :param actual_xml_model: Primary (Actual) UrlaXML model
+        :param expected_xml_model: Expected (Source of truth) UrlaXML model
+        :param tag: Tag name if specific comparison is done.
         :param html: (Bool) Generate HTML pages for each table?
 
         """
-        self.src = primary
-        self.cmp = basis
+        self.actual = actual_xml_model
+        self.expected = expected_xml_model
         self.html = html
-        self.report_engine = ComparisonReportEngine(primary_model=self.src.model, basis_model=self.cmp.model)
+        self.tag = tag
+        self.report_engine = ComparisonReportEngine(actual_model=self.actual.model, expected_model=self.expected.model)
         self.report_file = FileNameOps.create_filename(
-            primary_filename=self.src.data_file_name, basis_filename=self.cmp.data_file_name, ext='rpt', unique=True)
+            actual_xml_filename=self.actual.data_file_name, expected_xml_filename=self.expected.data_file_name, tag=self.tag,
+            ext='rpt', unique=True)
 
     def generate_reports_per_tag(self, results_dict: typing.Dict[str, dict], tag_name: str) -> typing.NoReturn:
         """
@@ -37,8 +41,8 @@ class ComparisonReports:
         :return: None
         """
         # Create the report filename and if it already exists, delete the file.
-        html_file = FileNameOps.create_filename(primary_filename=self.src.data_file_name,
-                                                basis_filename=self.cmp.data_file_name,
+        html_file = FileNameOps.create_filename(actual_xml_filename=self.actual.data_file_name,
+                                                expected_xml_filename=self.expected.data_file_name,
                                                 ext=f'{tag_name}.html', unique=True)
 
         # Instantiate report generator and generate result tables
@@ -88,14 +92,14 @@ class ComparisonReports:
 
         if html:
             html_file = FileNameOps.create_filename(
-                primary_filename=self.src.data_file_name, basis_filename=self.cmp.data_file_name,
+                actual_xml_filename=self.actual.data_file_name, expected_xml_filename=self.expected.data_file_name,
                 ext=f'sym.html', unique=True)
 
             html_table = sym_diff_table.get_html_string()
             html_table = self._process_html_table(
                 html_table=html_table, page_title="Symmetric Differences",
-                table_title=f'Symmetrical Differences between "{self.src.data_file_name}" and '
-                            f'"{self.cmp.data_file_name}"')
+                table_title=f'Symmetrical Differences between "{self.actual.data_file_name}" and '
+                            f'"{self.expected.data_file_name}"')
 
             with open(html_file, "a") as HTML:
                 HTML.write(html_table)

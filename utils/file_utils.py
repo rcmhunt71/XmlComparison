@@ -26,11 +26,13 @@ class FileNameOps:
         return os.path.abspath(os.path.sep.join(['.', target_dir, input_fname]))
 
     @staticmethod
-    def build_filespec(src: str, dst: str, target_dir: str = '.', ext: str = "log", html: bool = False) -> str:
+    def build_filespec(src: str, dst: str, tag: str = None, target_dir: str = '.', ext: str = "log",
+                       html: bool = False) -> str:
         """
         Builds the dir+name by combining the source file names (no ext) and adding a log file extension.
         :param src: Source XML file
         :param dst: Comparison XML file
+        :param tag: Additional information to be included in the filename
         :param target_dir: directory to write file (relative or absolute directory path)
         :param ext: file extension - default: "log"
         :param html: (bool) - Build HTML filename
@@ -41,23 +43,30 @@ class FileNameOps:
         src_portion = ".".join(src.split(os.path.sep)[-1].split(".")[:-1])
         dst_portion = ".".join(dst.split(os.path.sep)[-1].split(".")[:-1])
 
-        return os.path.abspath(os.path.sep.join([target_dir, f"comp_{src_portion}_{dst_portion}.{extension}"]))
+        add_info = f"_{tag}" if tag is not None else ""
+
+        filename = f"comp{add_info}_{src_portion}_{dst_portion}.{extension}"
+
+        return os.path.abspath(os.path.sep.join([target_dir, filename]))
 
     @classmethod
-    def create_filename(cls, primary_filename, basis_filename, ext="rpt", target_dir=".", unique=True):
+    def create_filename(cls, actual_xml_filename: str, expected_xml_filename: str, tag: str = None, ext: str = "rpt",
+                        target_dir: str = ".", unique: bool = True):
         """
         Create the requested filespec, and if the file exists, delete it (in the case where a filehandle needs to open
         in append mode, but it should be an empty file to start.
 
-        :param primary_filename: Primary XML file
-        :param basis_filename: Comparison XML file
+        :param actual_xml_filename: Primary XML file
+        :param expected_xml_filename: Comparison XML file
+        :param tag: If specific comparison is done, add the tag to the filename
         :param target_dir: directory to write file (relative or absolute directory path)
         :param ext: file extension - default: "rpt"
         :param unique: (bool) - If file already exists, delete
 
         :return: (str) filespec
         """
-        target_filespec = cls.build_filespec(src=primary_filename, dst=basis_filename, ext=ext, target_dir=target_dir)
+        target_filespec = cls.build_filespec(src=actual_xml_filename, dst=expected_xml_filename, tag=tag, ext=ext,
+                                             target_dir=target_dir)
         if unique and os.path.exists(target_filespec):
             os.remove(target_filespec)
         return target_filespec

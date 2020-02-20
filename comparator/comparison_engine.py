@@ -17,16 +17,16 @@ class ComparisonEngine:
     TOTAL = 'Total'
     HEADER_LENGTH = 120
 
-    def __init__(self, primary: UrlaXML, comparison: UrlaXML) -> typing.NoReturn:
+    def __init__(self, actual: UrlaXML, expected: UrlaXML) -> typing.NoReturn:
         """
         Instantiate the Comparison Engine
 
-        :param primary: Primary Model (model that should be correct)
-        :param comparison: Source of Truth (compare primary to this and report results)
+        :param actual: Primary Model (model that should be correct)
+        :param expected: Source of Truth (compare primary to this and report results)
 
         """
-        self.primary = primary
-        self.comparison = comparison
+        self.actual = actual
+        self.expected = expected
 
     def compare(self, tag_name: str) -> typing.Dict[str, dict]:
         """
@@ -38,37 +38,37 @@ class ComparisonEngine:
                  a close match (and how close), and links to current and corresponding XML node BaseElement models.
         """
         # If the tag is not found in the primary model, there is nothing to do.
-        if tag_name not in self.primary.model.path_dict.keys():
+        if tag_name not in self.actual.model.path_dict.keys():
             log.error(f"ERROR: Element '{tag_name}' not found in the primary model. Available elements:")
-            log.error(sorted(list(self.primary.model.path_dict.keys())))
+            log.error(", ".join(sorted(list(self.actual.model.path_dict.keys()))))
             return {}
 
         # Log the "boxed" tag section header to record what is being evaluated.
         log.info(self._build_log_header(f"Comparing element: '{tag_name}'"))
 
         # Get the target nodes from each XML file
-        log.debug(f"Getting SRC NODES")
-        src_nodes = self.get_elements(element_name=tag_name, root=self.primary.model)
-        log.debug(f"Getting CMP NODES")
-        cmp_nodes = self.get_elements(element_name=tag_name, root=self.comparison.model)
+        log.debug(f"Getting SRC (ACTUAL) NODES")
+        src_nodes = self.get_elements(element_name=tag_name, root=self.actual.model)
+        log.debug(f"Getting CMP (EXPECTED) NODES")
+        cmp_nodes = self.get_elements(element_name=tag_name, root=self.expected.model)
 
         # Do analysis and return results
-        return self._compare_element_lists(source_list=src_nodes, compare_list=cmp_nodes)
+        return self._compare_element_lists(actual_list=src_nodes, expected_list=cmp_nodes)
 
-    def _compare_element_lists(self, source_list: typing.List[BaseElement],
-                               compare_list: typing.List[BaseElement]) -> typing.Dict[str, dict]:
+    def _compare_element_lists(self, actual_list: typing.List[BaseElement],
+                               expected_list: typing.List[BaseElement]) -> typing.Dict[str, dict]:
         """
         Given two nodes (one from each source), comnpare the node attributes and children to find the matches and
         provide closest matches.
 
-        :param source_list: List of nodes to compare and verify
-        :param compare_list: List of nodes to compare (source of truth)
+        :param actual_list: List of nodes to compare and verify
+        :param expected_list: List of nodes to compare (source of truth)
 
         :return: dictionary of: key=src node xpaths, value={dict of source data, match data, and nearest match)
 
         """
-        log.debug(f"SRC NODES: {[x.xpath_str for x in source_list]}")
-        log.debug(f"CMP NODES: {[x.xpath_str for x in compare_list]}")
+        log.debug(f"SRC (ACTUAL) NODES:   {[x.xpath_str for x in actual_list]}")
+        log.debug(f"CMP (EXPECTED) NODES: {[x.xpath_str for x in expected_list]}")
 
         # Define the result tracking structure (for each element with the target tag)
         # Key: The XPATH for each target
@@ -79,61 +79,61 @@ class ComparisonEngine:
                               self.MATCH: None,
                               self.CLOSEST_MATCH_COUNT: 0,
                               self.TOTAL: 0,
-                              self.CLOSEST_OBJ: None}) for src in source_list])
+                              self.CLOSEST_OBJ: None}) for src in actual_list])
         cmp_match_found = []
 
-        for src_node in source_list:
-            log.debug(f"SOURCE NODE XPATH: {src_node.xpath_str}")
+        for act_node in actual_list:
+            log.debug(f"SOURCE NODE XPATH: {act_node.xpath_str}")
 
-            for cmp_node in compare_list:
-                log.debug(f"COMPARISON NODE XPATH: {cmp_node.xpath_str}")
+            for exp_node in expected_list:
+                log.debug(f"COMPARISON NODE XPATH: {exp_node.xpath_str}")
 
                 # Don't compare this comparison node if the comparison node has already been matched.
-                if cmp_node.xpath_str in cmp_match_found:
-                    log.debug(f"COMPARISON NODE ({cmp_node.xpath_str}) ALREADY MATCHED.")
+                if exp_node.xpath_str in cmp_match_found:
+                    log.debug(f"COMPARISON NODE ({exp_node.xpath_str}) ALREADY MATCHED.")
                     continue
 
                 # If the src node matches current cmp node, then compare elements (including children)
                 # Match = data elements match + same number of children
-                if self._compare_node(src_node=src_node, cmp_node=cmp_node):
-                    log.debug(f"CMP node matches (attr + #_child): {cmp_node.xpath_str} -> Checking descendants...")
+                if self._compare_node(src_node=act_node, cmp_node=exp_node):
+                    log.debug(f"CMP node matches (attr + #_child): {exp_node.xpath_str} -> Checking descendants...")
 
                     # Get all descendant nodes (down to the leaf elements)
-                    src_children = self.get_leaf_nodes(src_node)
-                    cmp_children = self.get_leaf_nodes(cmp_node)
+                    actual_children = self.get_leaf_nodes(act_node)
+                    expected_children = self.get_leaf_nodes(exp_node)
 
                     # For a detailed analyses, expand the data nodes to be separate XPATH entries
                     # By default, all data nodes are combined with the parent for quicker comparison of nodes
                     # with children and data, but in this case, it will provide a less accurate comparison.
-                    src_child_set = self._expand_objpath_pathsets(children=src_children)
-                    cmp_child_set = self._expand_objpath_pathsets(children=cmp_children)
+                    actual_child_set = self._expand_objpath_pathsets(children=actual_children)
+                    expected_child_set = self._expand_objpath_pathsets(children=expected_children)
 
-                    log.debug(f"EXPANDED SOURCE OBJ_PATH SET:\n{pprint.pformat(src_child_set)}")
-                    log.debug(f"EXPANDED COMPARISON OBJ_PATH SET:\n{pprint.pformat(cmp_child_set)}")
+                    log.debug(f"EXPANDED SOURCE (ACTUAL) OBJ_PATH SET:\n{pprint.pformat(actual_child_set)}")
+                    log.debug(f"EXPANDED COMPARISON (EXPECTED) OBJ_PATH SET:\n{pprint.pformat(expected_child_set)}")
 
                     # Determine the total number of unique xpaths/traversal paths in this comparison
-                    max_count = self._get_max_unique_count(set_1=src_child_set, set_2=cmp_child_set)
+                    max_count = self._get_max_unique_count(set_1=actual_child_set, set_2=expected_child_set)
 
                     # Exact match
-                    if src_child_set == cmp_child_set:
-                        log.debug(f"**MATCH**: {src_node.xpath_str} and {cmp_node.xpath_str}")
-                        results_dict[src_node.xpath_str][self.MATCH] = cmp_node
-                        results_dict[src_node.xpath_str][self.CLOSEST_OBJ] = None
-                        results_dict[src_node.xpath_str][self.CLOSEST_MATCH_COUNT] = -1
-                        results_dict[src_node.xpath_str][self.TOTAL] = max_count
-                        cmp_match_found.append(cmp_node.xpath_str)
+                    if actual_child_set == expected_child_set:
+                        log.debug(f"**MATCH**: {act_node.xpath_str} and {exp_node.xpath_str}")
+                        results_dict[act_node.xpath_str][self.MATCH] = exp_node
+                        results_dict[act_node.xpath_str][self.CLOSEST_OBJ] = None
+                        results_dict[act_node.xpath_str][self.CLOSEST_MATCH_COUNT] = -1
+                        results_dict[act_node.xpath_str][self.TOTAL] = max_count
+                        cmp_match_found.append(exp_node.xpath_str)
                         break
 
                     # Check if this cmp node is the closest match compared to previous comparisons.
                     # If so, store the cmp_node (BaseElement), number of matches, + total number of compared elements.
                     else:
-                        log.debug(f"DID NOT MATCH: {src_node.xpath_str} and {cmp_node.xpath_str}")
+                        log.debug(f"DID NOT MATCH: {act_node.xpath_str} and {exp_node.xpath_str}")
 
-                        num_matches = len(src_child_set.intersection(cmp_child_set))
-                        if num_matches > results_dict[src_node.xpath_str][self.CLOSEST_MATCH_COUNT]:
-                            results_dict[src_node.xpath_str][self.CLOSEST_MATCH_COUNT] = num_matches
-                            results_dict[src_node.xpath_str][self.CLOSEST_OBJ] = cmp_node
-                            results_dict[src_node.xpath_str][self.TOTAL] = max_count
+                        num_matches = len(actual_child_set.intersection(expected_child_set))
+                        if num_matches > results_dict[act_node.xpath_str][self.CLOSEST_MATCH_COUNT]:
+                            results_dict[act_node.xpath_str][self.CLOSEST_MATCH_COUNT] = num_matches
+                            results_dict[act_node.xpath_str][self.CLOSEST_OBJ] = exp_node
+                            results_dict[act_node.xpath_str][self.TOTAL] = max_count
 
                 # C0mp node did not match the source node (in format/size), so move to the next comp node.
                 else:
