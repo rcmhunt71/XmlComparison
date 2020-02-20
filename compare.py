@@ -12,8 +12,6 @@ from utils.file_utils import FileNameOps
 
 log = Logger()
 
-# TODO: Rename all source/comparison references (method and var names) to primary/basis.
-
 
 class CLIArgs:
     """
